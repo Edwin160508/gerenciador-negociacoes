@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="UTF-8">
+	<title>Aprendendo IndexedDB</title>
+</head>
+<body>
+	<script src="js/app/models/Negociacao.js"></script>
+	<script>
+		var connection;
+		var openRequest = window.indexedDB.open('aluraframe', 2);
+		//tread de eventos do indexedDB
+		/*onupgradeneeded;*/
+		openRequest.onupgradeneeded = e =>{
+			console.log('Cria ou Altera um banco já existente.');
+			
+			let minhaConnection = e.target.result;
+			//Se contem algum objetoStore com nome 'negociacoes'
+			if(minhaConnection.objectStoreNames.contains('negociacoes')){
+				minhaConnection.deleteObjectStore('negociacoes'); //remova	
+			}
+			minhaConnection.createObjectStore('negociacoes', {autoIncrement:true});//criando ObjetoStore chamado negociações com Chave primaria 'AutoIncrement'
+		};
+		
+		/*onsuccess;*/
+		openRequest.onsuccess = e =>{
+			console.log('Conexão obtida com sucesso.');
+			connection = e.target.result;//instanciando conexão indexDB
+		};
+
+		/*onerror;*/
+		openRequest.onerror = e =>{
+			console.log(e.target.error);
+		};
+
+		function adiciona(){
+			// É Nescessario abrir uma trasação para armazenar 'Objetos' em um 'ObjetoStore'
+			//Pedir transação e saber o tipo
+			let transaction = connection.transaction(['negociacoes'], 'readwrite');//passando o nome do ObjetoStore e o que vai ser feito no caso iremos ler e escrever
+
+			/*Tornando a Store como objeto Transacional
+			-Obetendo acesso da ObjectStore
+			*/
+			let store = transaction.objectStore('negociacoes');
+
+			let negociacao = new Negociacao(new Date(), 1, 200); //setando uma negociacao manualmente.
+
+			/*add do Object Store retorna uma requisição se foi bem sucedida ou não*/
+			let request = store.add(negociacao); //adicionando o objeto acima setado na store, mais ainda preciso verificar se foi feito ou não.
+			request.onsuccess = e => {
+				console.log('Negociação incluida com sucesso.');
+			};
+			request.onerror = e => {
+				console.log('Erro na inclusão da Negociação.');
+				console.log(e.target.error);
+			};
+		}
+
+		function listaTodos(){
+			//Pedir transação e saber o tipo
+			let transaction = connection.transaction(['negociacoes'], 'readonly');//passando o nome do ObjetoStore e o que vai ser consultado.
+
+			/*
+			-Obetendo acesso da ObjectStore
+			*/
+			let store = transaction.objectStore('negociacoes');
+
+			let cursor = store.openCursor();
+
+			let negociacoes = []; //array que vai ser armazenado consultas vindas do indexedDB
+
+			cursor.onsuccess = e =>{
+
+				let atual = e.target.result;//ponteiro realizado no banco, 'Como um indice de um for'
+				if(atual){//verifica se o ponteiro contem um objeto valido
+					let dado = atual.value;//pega o objeto
+
+					/*Foi nescessario criar uma instancia de Negociacao pelo fato do objectStore so armazenar parametros
+						dai esta sendo setado os parametros do 'objectStore' para o objeto Negociacao.
+					*/
+					negociacoes.push(new Negociacao(dado._data, dado._quantidade, dado._valor));
+
+					atual.continue();//mandando seguir com a varredura.
+				}else{
+					console.log(negociacoes);//as lista estarar pronta para ser exibida aqui no console
+				}
+			};
+			cursor.onerror = e =>{
+				console.log('Ocorreu Erro durante a varredura do ObjectStore.');
+				console.log(e.target.error.name);
+			};
+		}
+
+		ConnectionFactory
+			.getConnection()
+			.then(connection => {
+				//usa conexão
+			});
+
+		ConnectionFactory
+			.getConnection()
+			.then(connection => {
+				//a conexão tem que se a mesma utilizada anteriormente
+			});	
+		/*	
+		a) getConnection vai ser um método estático.
+		b) getConnection vai retornar uma promise por isso usamos o then
+		c) não importa o número de vezes que eu chamar o método estático, a conexão precisa ser a mesma.
+		d) o programador não pode chamar close diretamente. Ela só pode ser fechada através da própria ConectionFactory.*/
+	</script>
+</body>
+</html>
